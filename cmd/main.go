@@ -31,6 +31,10 @@ func main() {
 	s4 := protohackers.DatabaseServer{}
 	go s4.ListenAndServe(protohackers.Addr4)
 
+	fmt.Printf("starting problem 5 server: %s\n", protohackers.Addr5)
+	s5 := protohackers.ChatProxyServer{}
+	go s5.ListenAndServe(protohackers.Addr5, protohackers.UpstreamChat)
+
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-done
@@ -38,4 +42,6 @@ func main() {
 	s1.Close()
 	s2.Close()
 	s3.Close()
+	s4.Close()
+	s5.Close()
 }
