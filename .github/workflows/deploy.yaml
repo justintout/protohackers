@@ -1,0 +1,38 @@
+name: deploy website
+
+on: 
+  push:
+    branches:
+    - main
+    paths:
+    - '**.go'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: build executable
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v3
+      with:
+        go-version: '>=1.18.0'
+    - run: go test ./...
+    - run: |
+        mkdir out
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o out/protohackers
+    - name: set up ssh keys
+      run: |
+        install -m 600 -D /dev/null ~/.ssh/key
+        echo "$SSH_KEY" > ~/.ssh/key
+        chmod 0600 ~/.ssh/key
+        echo "$SSH_KNOWN" > ~/.ssh/known_hosts
+      env:
+        SSH_KEY: ${{secrets.SSH_KEY}}
+        SSH_KNOWN: ${{secrets.SSH_KNOWN}}
+    - name: sync executable to server
+      run: |
+        rsync -e "ssh -i $HOME/.ssh/key" -rzvh --delete out/ protohackers@justintout.com:
