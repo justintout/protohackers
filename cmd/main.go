@@ -27,6 +27,10 @@ func main() {
 	s3 := protohackers.ChatServer{}
 	go s3.ListenAndServe(protohackers.Addr3)
 
+	fmt.Printf("starting problem 4 server: %s\n", protohackers.Addr4)
+	s4 := protohackers.DatabaseServer{}
+	go s4.ListenAndServe(protohackers.Addr4)
+
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-done
