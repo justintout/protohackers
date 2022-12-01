@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/justintout/protohackers"
 )
 
 func main() {
-	fmt.Printf("started listener 0 at: %s\n", protohackers.Addr0)
-	http.ListenAndServe(protohackers.Addr0, protohackers.Mux0())
+	fmt.Printf("starting problem 0 server: %s\n", protohackers.Addr0)
+	s0 := protohackers.EchoServer{}
+	s0.ListenAndServe(protohackers.Addr0)
 }

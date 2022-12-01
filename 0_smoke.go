@@ -2,20 +2,32 @@ package protohackers
 
 import (
 	"io"
-	"net/http"
+	"net"
 )
 
-const Addr0 = ":10000"
+const Addr0 = "0.0.0.0:10000"
 
-func Mux0() *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", handler)
-	return mux
+type EchoServer struct {
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	if _, err := io.Copy(w, r.Body); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+func (s *EchoServer) ListenAndServe(addr string) {
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		panic(err)
 	}
+	defer l.Close()
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			panic(err)
+		}
+		go handle(conn)
+	}
+}
+
+func handle(conn net.Conn) {
+	if _, err := io.Copy(conn, conn); err != nil {
+		panic(err)
+	}
+	conn.Close()
 }
