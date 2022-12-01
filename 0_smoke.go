@@ -8,6 +8,7 @@ import (
 const Addr0 = "0.0.0.0:10000"
 
 type EchoServer struct {
+	listener net.Listener
 }
 
 func (s *EchoServer) ListenAndServe(addr string) {
@@ -15,17 +16,22 @@ func (s *EchoServer) ListenAndServe(addr string) {
 	if err != nil {
 		panic(err)
 	}
+	s.listener = l
 	defer l.Close()
 	for {
 		conn, err := l.Accept()
 		if err != nil {
 			panic(err)
 		}
-		go handle(conn)
+		go handle0(conn)
 	}
 }
 
-func handle(conn net.Conn) {
+func (s *EchoServer) Close() {
+	s.listener.Close()
+}
+
+func handle0(conn net.Conn) {
 	if _, err := io.Copy(conn, conn); err != nil {
 		panic(err)
 	}
