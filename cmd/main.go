@@ -19,9 +19,13 @@ func main() {
 	s1 := protohackers.PrimeServer{}
 	go s1.ListenAndServe(protohackers.Addr1)
 
+	fmt.Printf("starting problem 2 server: %s\n", protohackers.Addr2)
+	s2 := protohackers.MeanServer{}
+	go s2.ListenAndServe(protohackers.Addr2)
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-done
 	s0.Close()
 	s1.Close()
+	s2.Close()
 }
