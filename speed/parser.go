@@ -1,80 +1,12 @@
-package protohackers
+package speed
 
 import (
 	"bufio"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
-)
-
-type SpeedServer struct {
-	listener net.Listener
-	messages chan speedMessage
-	log      []speedMessage
-}
-
-func (s *SpeedServer) ListenAndServe(addr string) {
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-	s.listener = l
-	defer l.Close()
-	messages := make(chan speedMessage)
-	go s.listen(messages)
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			panic(err)
-		}
-		_, m := newParser(conn)
-		go func() {
-			for message := range m {
-				messages <- message
-			}
-		}()
-	}
-}
-
-func (s *SpeedServer) Close() {
-	s.listener.Close()
-}
-
-func (s *SpeedServer) listen(messages chan speedMessage) {
-	for message := range messages {
-		s.log = append(s.log, message)
-		switch message.typ() {
-		}
-		s.handleMessage(message)
-	}
-}
-
-func (s *SpeedServer) handleMessage(message speedMessage) {
-
-}
-
-const eof = 0x00
-
-// client types
-const (
-	clientTypCamera     uint8 = 0x80
-	clientTypDispatcher uint8 = 0x81
-)
-
-// message types
-const (
-	typEOF uint8 = 0x04
-
-	// server -> client message types.
-	typErr       uint8 = 0x10
-	typTicket    uint8 = 0x21
-	typHeartbeat uint8 = 0x41
-
-	// client -> server message types
-	typPlate         uint8 = 0x20
-	typWantHeartbeat uint8 = 0x40
-	typIAmCamera     uint8 = 0x80
-	typIAmDispatcher uint8 = 0x81
+	"time"
 )
 
 type lstring struct {
@@ -82,36 +14,19 @@ type lstring struct {
 	msg []byte
 }
 
-func (l *lstring) bytes() []byte {
+func (l lstring) bytes() []byte {
 	return append([]byte{l.len}, l.msg...)
 }
 
-type speedMessage interface {
-	typ() uint8
+func (l lstring) String() string {
+	return fmt.Sprintf("str<len=%d; msg=%s>", l.len, l.msg)
 }
 
-type plateMessage struct {
-	plate     []byte
-	timestamp uint32
+func (l lstring) write(w io.Writer) (int, error) {
+	return w.Write(append([]byte{l.len}, l.msg...))
 }
 
-func (m *plateMessage) typ() uint8 {
-	return typPlate
-}
-
-func (m *plateMessage) bytes() []byte {
-	return append([]byte{m.typ()}, append(m.plate, []byte(m.timestamp))...)
-}
-
-type errorMessage struct {
-	msg []byte
-}
-
-func typ() uint8 {
-	return typErr
-}
-
-func newParser(conn net.Conn) (*parser, chan speedMessage) {
+func newParser(conn net.Conn) (*parser, chan message) {
 	p := parser{
 		conn:   conn,
 		reader: bufio.NewReader(conn),
@@ -124,7 +39,8 @@ type parser struct {
 	conn       net.Conn
 	reader     *bufio.Reader
 	clientType uint8
-	messages   chan speedMessage
+	heartbeat  *time.Ticker
+	messages   chan message
 	close      chan struct{}
 }
 
@@ -200,7 +116,7 @@ func (p *parser) nextN(n int) ([]byte, bool) {
 	return b[:rn], false
 }
 
-func (p *parser) emit(msg speedMessage) {
+func (p *parser) emit(msg message) {
 	p.messages <- msg
 }
 
@@ -213,29 +129,71 @@ func parseBegin(p *parser) stateFn {
 			break
 		}
 		if next == typErr || next == typTicket || next == typHeartbeat {
-			p.emit(speedMessage{Typ: typErr, Data: []byte("illegal message for client")})
+			p.emit(errorMessage{msg: []byte("illegal message for client")})
 			break
 		}
 		if next == typPlate {
 			if p.clientType != clientTypCamera {
-				p.emit(speedMessage{Typ: typErr, Data: []byte("illegal message for client type")})
+				p.emit(errorMessage{msg: []byte("illegal message for client type")})
 			}
 			return parsePlate
 		}
 	}
-	p.emit(speedMessage{Typ: typEOF})
+	p.emit(eofMessage{})
 	return nil
 }
 
 func parsePlate(p *parser) stateFn {
 	var (
-		plate     []byte
+		plate     lstring
 		timestamp uint32
 		eof       bool
 	)
 	plate, eof = p.nextString()
 	timestamp, eof = p.nextU32()
-	p.emit(speedMessage{Typ: typPlate, D})
+	p.emit(&plateMessage{
+		plate:     plate,
+		timestamp: timestamp,
+	})
+	if eof {
+		return nil
+	}
+	return parseBegin
+}
+
+func parseWantHeartbeat(p *parser) stateFn {
+	var (
+		interval uint32
+		eof      bool
+	)
+	interval, eof = p.nextU32()
+	p.emit(wantHearbeatMessage{
+		interval: interval,
+	})
+	if eof {
+		return nil
+	}
+	return parseBegin
+}
+
+func parseIAmCamera(p *parser) stateFn {
+	p.emit(&errorMessage{
+		msg: []byte("client already declared type"),
+	})
+	var (
+		road  uint16
+		mile  uint16
+		limit uint16
+		eof   bool
+	)
+	road, eof = p.nextU16()
+	mile, eof = p.nextU16()
+	limit, eof = p.nextU16()
+	p.emit(iAmCameraMessage{
+		road:  road,
+		mile:  mile,
+		limit: limit,
+	})
 	if eof {
 		return nil
 	}

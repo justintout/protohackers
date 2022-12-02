@@ -7,6 +7,11 @@ import (
 	"syscall"
 
 	"github.com/justintout/protohackers"
+	"github.com/justintout/protohackers/speed"
+)
+
+const (
+	addr6 = "0.0.0.0:10006"
 )
 
 // TODO: shutdown is sketchy and leaks. needs channels.
@@ -34,6 +39,10 @@ func main() {
 	fmt.Printf("starting problem 5 server: %s\n", protohackers.Addr5)
 	s5 := protohackers.ChatProxyServer{}
 	go s5.ListenAndServe(protohackers.Addr5, protohackers.UpstreamChat)
+
+	fmt.Printf("starting problem 6 server: %s\n", addr6)
+	s6 := speed.Server{}
+	go s6.ListenAndServe(addr6)
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
