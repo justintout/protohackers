@@ -33,25 +33,25 @@ func (s *MeanServer) Close() {
 	s.listener.Close()
 }
 
-type message struct {
+type meanMessage struct {
 	Typ [1]byte
 	F   [4]byte
 	S   [4]byte
 }
 
-func (m message) IsInsert() bool {
+func (m meanMessage) IsInsert() bool {
 	return m.Typ[0] == 'I'
 }
 
-func (m message) IsQuery() bool {
+func (m meanMessage) IsQuery() bool {
 	return m.Typ[0] == 'Q'
 }
 
-func (m message) First() int32 {
+func (m meanMessage) First() int32 {
 	return int32(binary.BigEndian.Uint32(m.F[:]))
 }
 
-func (m message) Second() int32 {
+func (m meanMessage) Second() int32 {
 	return int32(binary.BigEndian.Uint32(m.S[:]))
 }
 
@@ -62,7 +62,7 @@ func handle2(conn net.Conn) {
 	s := make(storage)
 
 	for {
-		var m message
+		var m meanMessage
 		if err := binary.Read(conn, binary.BigEndian, &m); err != nil {
 			if err == io.EOF {
 				conn.Close()
@@ -83,11 +83,11 @@ func handle2(conn net.Conn) {
 	}
 }
 
-func handleInsert(conn net.Conn, s storage, m message) {
+func handleInsert(conn net.Conn, s storage, m meanMessage) {
 	s[m.First()] = m.Second()
 }
 
-func handleQuery(conn net.Conn, store storage, m message) {
+func handleQuery(conn net.Conn, store storage, m meanMessage) {
 	var (
 		s int
 		n int
